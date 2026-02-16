@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>AI Video Generator</title>
+<style>
+body{
+    font-family:Arial;
+    text-align:center;
+    background:linear-gradient(135deg,#1e3c72,#2a5298);
+    color:white;
+}
+.container{
+    margin-top:20px;
+}
+canvas{
+    background:black;
+    margin-top:20px;
+}
+button{
+    padding:10px 20px;
+    margin:10px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+input, select{
+    padding:5px;
+    margin:5px;
+}
+</style>
+</head>
+<body>
+
+<h1>🎥 AI Video dari Gambar</h1>
+
+<div class="container">
+<input type="file" id="imageUpload" accept="image/*"><br>
+
+<input type="text" id="videoText" placeholder="Tulis teks di video"><br>
+
+<select id="effect">
+<option value="zoom">Zoom</option>
+<option value="fade">Fade</option>
+<option value="slide">Slide</option>
+</select><br>
+
+<label>Durasi (detik): </label>
+<input type="number" id="duration" value="5"><br>
+
+<button onclick="generateVideo()">Generate Video</button>
+<br>
+<video id="resultVideo" controls></video>
+</div>
+
+<canvas id="canvas" width="720" height="480"></canvas>
+
+<script>
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+let image = new Image();
+
+document.getElementById("imageUpload").addEventListener("change", function(e){
+    let reader = new FileReader();
+    reader.onload = function(event){
+        image.src = event.target.result;
+    }
+    reader.readAsDataURL(e.target.files[0]);
+});
+
+function generateVideo(){
+    let duration = parseInt(document.getElementById("duration").value);
+    let effect = document.getElementById("effect").value;
+    let text = document.getElementById("videoText").value;
+
+    let stream = canvas.captureStream(30);
+    let recorder = new MediaRecorder(stream);
+    let chunks = [];
+
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = () => {
+        let blob = new Blob(chunks, {type:"video/webm"});
+        let url = URL.createObjectURL(blob);
+        document.getElementById("resultVideo").src = url;
+    };
+
+    recorder.start();
+
+    let start = Date.now();
+
+    function animate(){
+        let elapsed = (Date.now() - start)/1000;
+        if(elapsed > duration){
+            recorder.stop();
+            return;
+        }
+
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+
+        if(effect === "zoom"){
+            let scale = 1 + elapsed*0.1;
+            let w = canvas.width*scale;
+            let h = canvas.height*scale;
+            ctx.drawImage(image, -(w-canvas.width)/2, -(h-canvas.height)/2, w, h);
+        }
+
+        if(effect === "fade"){
+            ctx.globalAlpha = Math.sin(elapsed)*0.5 + 0.5;
+            ctx.drawImage(image,0,0,canvas.width,canvas.height);
+            ctx.globalAlpha = 1;
+        }
+
+        if(effect === "slide"){
+            let x = (elapsed/duration)*canvas.width;
+            ctx.drawImage(image,-canvas.width + x,0,canvas.width,canvas.height);
+        }
+
+        ctx.fillStyle="white";
+        ctx.font="30px Arial";
+        ctx.fillText(text, 50, canvas.height-50);
+
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+}
+</script>
+
+</body>
+</html>
